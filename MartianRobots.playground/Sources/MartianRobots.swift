@@ -5,11 +5,18 @@ public enum MartianRobotsError: Error {
     case invalidTypesInWorld
     case invalidNumberOfComponentsInRobotPosition
     case invalidTypesInRobotPosition
+    case invalidDirection
+    case invalidAction
 }
 
 public struct World: CustomStringConvertible {
     public let maxX: UInt
     public let maxY: UInt
+
+    public init(maxX: UInt, maxY: UInt) {
+        self.maxX = maxX
+        self.maxY = maxY
+    }
 
     public init(_ string: String) throws {
         let components = string.components(separatedBy: .whitespaces)
@@ -34,12 +41,26 @@ public enum Direction: String {
     case east = "E"
     case south = "S"
     case west = "W"
+
+    init(_ rawValue: String) throws {
+        guard let direction = Self(rawValue: rawValue) else {
+            throw MartianRobotsError.invalidDirection
+        }
+        self = direction
+    }
 }
 
 public enum Action: String {
     case left = "L"
     case right = "R"
     case forward = "F"
+
+    init(_ rawValue: String) throws {
+        guard let action = Self(rawValue: rawValue) else {
+            throw MartianRobotsError.invalidAction
+        }
+        self = action
+    }
 }
 
 public struct RobotPosition: CustomStringConvertible {
@@ -47,6 +68,13 @@ public struct RobotPosition: CustomStringConvertible {
     let y: UInt
     let direction: Direction
     let isLost: Bool
+
+    public init(x: UInt, y: UInt, direction: Direction, isLost: Bool) {
+        self.x = x
+        self.y = y
+        self.direction = direction
+        self.isLost = isLost
+    }
 
     public init(_ string: String) throws {
         let components = string.components(separatedBy: .whitespaces)
@@ -73,5 +101,81 @@ public struct RobotPosition: CustomStringConvertible {
 
     public var description: String {
         return "\(x) \(y) \(direction.rawValue)\(isLost ? " LOST" : "")"
+    }
+}
+
+func moveRobot(at robotPosition: RobotPosition, in world: World, action: Action) -> RobotPosition {
+    switch action {
+    case .left:
+        return turnRobotLeft(at: robotPosition, in: world)
+    case .right:
+        return turnRobotRight(at: robotPosition, in: world)
+    case .forward:
+        return moveRobotForward(at: robotPosition, in: world)
+    }
+}
+
+func turnRobotLeft(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    let direction: Direction
+    switch robotPosition.direction {
+    case .north:
+        direction = .west
+    case .east:
+        direction = .north
+    case .south:
+        direction = .east
+    case .west:
+        direction = .south
+    }
+    return RobotPosition(x: robotPosition.x,
+                         y: robotPosition.y,
+                         direction: direction,
+                         isLost: false)
+}
+
+func turnRobotRight(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    let direction: Direction
+    switch robotPosition.direction {
+    case .north:
+        direction = .east
+    case .east:
+        direction = .south
+    case .south:
+        direction = .west
+    case .west:
+        direction = .north
+    }
+    return RobotPosition(x: robotPosition.x,
+                         y: robotPosition.y,
+                         direction: direction,
+                         isLost: false)
+}
+
+func moveRobotForward(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    switch robotPosition.direction {
+    case .north:
+        let y = robotPosition.y + 1
+        return RobotPosition(x: robotPosition.x,
+                             y: y,
+                             direction: robotPosition.direction,
+                             isLost: false)
+    case .east:
+        let x = robotPosition.x + 1
+        return RobotPosition(x: x,
+                             y: robotPosition.y,
+                             direction: robotPosition.direction,
+                             isLost: false)
+    case .south:
+        let y = robotPosition.y - 1
+        return RobotPosition(x: robotPosition.x,
+                             y: y,
+                             direction: robotPosition.direction,
+                             isLost: false)
+    case .west:
+        let x = robotPosition.x - 1
+        return RobotPosition(x: x,
+                             y: robotPosition.y,
+                             direction: robotPosition.direction,
+                             isLost: false)
     }
 }

@@ -13,6 +13,10 @@ public class TestRunner: NSObject, XCTestObservation {
 
         WorldTests.defaultTestSuite.run()
         RobotPositionTests.defaultTestSuite.run()
+        MoveRobotTests.defaultTestSuite.run()
+        TurnRobotLeftTests.defaultTestSuite.run()
+        TurnRobotRightTests.defaultTestSuite.run()
+        MoveRobotForwardTests.defaultTestSuite.run()
 
         if testFailures.isEmpty {
             print("\n***** ALL TESTS SUCCEEDED *****")
@@ -27,7 +31,6 @@ public class TestRunner: NSObject, XCTestObservation {
         }
     }
 }
-
 
 class WorldTests: XCTestCase {
 
@@ -97,6 +100,157 @@ public class RobotPositionTests: XCTestCase {
     }
 }
 
+
+public class MoveRobotTests: XCTestCase {
+
+    public func test_left() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+        let inputAction = try Action("L")
+
+        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, action: inputAction)
+
+        XCTAssertEqual(robotPosition.description, "1 2 W")
+    }
+
+    public func test_right() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+        let inputAction = try Action("R")
+
+        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, action: inputAction)
+
+        XCTAssertEqual(robotPosition.description, "1 2 E")
+    }
+
+    public func test_forward() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+        let inputAction = try Action("F")
+
+        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, action: inputAction)
+
+        XCTAssertEqual(robotPosition.description, "1 3 N")
+    }
+}
+
+
+public class TurnRobotLeftTests: XCTestCase {
+
+    public func test_north_to_west() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotLeft(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 W")
+    }
+
+    public func test_east_to_north() throws {
+        let inputRobotPosition = try RobotPosition("1 2 E")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotLeft(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 N")
+    }
+
+    public func test_south_to_east() throws {
+        let inputRobotPosition = try RobotPosition("1 2 S")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotLeft(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 E")
+    }
+
+    public func test_west_to_south() throws {
+        let inputRobotPosition = try RobotPosition("1 2 W")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotLeft(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 S")
+    }
+}
+
+public class TurnRobotRightTests: XCTestCase {
+
+    public func test_north_to_east() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotRight(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 E")
+    }
+
+    public func test_east_to_south() throws {
+        let inputRobotPosition = try RobotPosition("1 2 E")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotRight(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 S")
+    }
+
+    public func test_south_to_west() throws {
+        let inputRobotPosition = try RobotPosition("1 2 S")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotRight(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 W")
+    }
+
+    public func test_west_to_north() throws {
+        let inputRobotPosition = try RobotPosition("1 2 W")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = turnRobotRight(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 2 N")
+    }
+}
+
+public class MoveRobotForwardTests: XCTestCase {
+
+    public func test_north() throws {
+        let inputRobotPosition = try RobotPosition("1 2 N")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 3 N")
+    }
+
+    public func test_east() throws {
+        let inputRobotPosition = try RobotPosition("1 2 E")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "2 2 E")
+    }
+
+    public func test_south() throws {
+        let inputRobotPosition = try RobotPosition("1 2 S")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "1 1 S")
+    }
+
+    public func test_west() throws {
+        let inputRobotPosition = try RobotPosition("1 2 W")
+        let inputWorld = try World("100 100")
+
+        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "0 2 W")
+    }
+}
 
 // TODO:
 //public class GameTests: XCTestCase {
