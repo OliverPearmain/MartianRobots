@@ -23,6 +23,7 @@ public class TestRunner: NSObject, XCTestObservation {
         TurnRobotRightTests.defaultTestSuite.run()
         MoveRobotForwardTests.defaultTestSuite.run()
         AreCoordinatesInsideTests.defaultTestSuite.run()
+        AreCoordinatesOnAScentTests.defaultTestSuite.run()
 
         if testFailures.isEmpty {
             print("\n***** ALL TESTS SUCCEEDED *****")
@@ -60,14 +61,12 @@ class WorldTests: XCTestCase {
         let world = try World("0 0")
         XCTAssertEqual(world.maxX, 0)
         XCTAssertEqual(world.maxY, 0)
-        XCTAssertEqual(world.description, "0 0")
     }
 
     func test_init_successB() throws {
         let world = try World("125 2099")
         XCTAssertEqual(world.maxX, 125)
         XCTAssertEqual(world.maxY, 2099)
-        XCTAssertEqual(world.description, "125 2099")
     }
 }
 
@@ -116,7 +115,7 @@ class MartianRobotsInputTests: XCTestCase {
         let input = try MartianRobotsInput("""
             10 10
         """)
-        XCTAssertEqual(input.world, World(maxX: 10, maxY: 10))
+        XCTAssertEqual(input.world, World(maxX: 10, maxY: 10, scents: []))
         XCTAssertEqual(input.robotPositionAndInstructionsList.count, 0)
     }
 
@@ -126,7 +125,7 @@ class MartianRobotsInputTests: XCTestCase {
             1 2 W
             LFR
         """)
-        XCTAssertEqual(input.world, World(maxX: 10, maxY: 10))
+        XCTAssertEqual(input.world, World(maxX: 10, maxY: 10, scents: []))
         XCTAssertEqual(input.robotPositionAndInstructionsList.count, 1)
         XCTAssertEqual(input.robotPositionAndInstructionsList[0].robotPosition, RobotPosition(x: 1, y: 2, direction: .west, isLost: false))
         XCTAssertEqual(input.robotPositionAndInstructionsList[0].instructions, [.left, .forward, .right])
@@ -144,7 +143,7 @@ class MartianRobotsInputTests: XCTestCase {
             0 3 W
             LLFFFLFLFL
         """)
-        XCTAssertEqual(input.world, World(maxX: 5, maxY: 3))
+        XCTAssertEqual(input.world, World(maxX: 5, maxY: 3, scents: []))
         XCTAssertEqual(input.robotPositionAndInstructionsList.count, 3)
         XCTAssertEqual(input.robotPositionAndInstructionsList[0].robotPosition, RobotPosition(x: 1, y: 1, direction: .east, isLost: false))
         XCTAssertEqual(input.robotPositionAndInstructionsList[0].instructions, [.right, .forward, .right, .forward, .right, .forward, .right, .forward])
@@ -218,7 +217,7 @@ public class ProcessInputStringTests: XCTestCase {
         XCTAssertEqual(outputString, """
         1 1 E
         3 3 N LOST
-        3 3 N LOST
+        2 3 S
         """)
     }
 }
@@ -243,7 +242,7 @@ public class ProcessInputTests: XCTestCase {
         XCTAssertEqual(output.robotPositions, [
             RobotPosition(x: 1, y: 1, direction: .east, isLost: false),
             RobotPosition(x: 3, y: 3, direction: .north, isLost: true),
-            RobotPosition(x: 3, y: 3, direction: .north, isLost: true)
+            RobotPosition(x: 2, y: 3, direction: .south, isLost: false)
         ])
     }
 }
@@ -255,9 +254,10 @@ public class MoveRobotInstructionsTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstructions: [Instruction] = [.left, .forward, .right]
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
 
         XCTAssertEqual(robotPosition.description, "0 2 N")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_forward_right_forward() throws {
@@ -265,9 +265,10 @@ public class MoveRobotInstructionsTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstructions: [Instruction] = [.forward, .right, .forward]
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
 
         XCTAssertEqual(robotPosition.description, "2 3 E")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_whenLost_doesNotMove() throws {
@@ -275,9 +276,21 @@ public class MoveRobotInstructionsTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstructions: [Instruction] = [.forward, .right, .forward]
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
 
         XCTAssertEqual(robotPosition.description, "0 2 N LOST")
+        XCTAssertEqual(world, inputWorld)
+    }
+
+    public func test_whenOnScentAndWouldGoOffGrid_doesNotMove() throws {
+        let inputRobotPosition = try RobotPosition("0 2 N")
+        let inputWorld = World(maxX: 2, maxY: 2, scents: [Scent(x: 0, y: 2)])
+        let inputInstructions: [Instruction] = [.forward]
+
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instructions: inputInstructions)
+
+        XCTAssertEqual(robotPosition.description, "0 2 N")
+        XCTAssertEqual(world, inputWorld)
     }
 }
 
@@ -288,9 +301,10 @@ public class MoveRobotInstructionTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstruction = try Instruction("L")
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
 
         XCTAssertEqual(robotPosition.description, "1 2 W")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_right() throws {
@@ -298,9 +312,10 @@ public class MoveRobotInstructionTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstruction = try Instruction("R")
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
 
         XCTAssertEqual(robotPosition.description, "1 2 E")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_forward() throws {
@@ -308,9 +323,10 @@ public class MoveRobotInstructionTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstruction = try Instruction("F")
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
 
         XCTAssertEqual(robotPosition.description, "1 3 N")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_whenLost_doesNotMove() throws {
@@ -318,9 +334,21 @@ public class MoveRobotInstructionTests: XCTestCase {
         let inputWorld = try World("100 100")
         let inputInstruction = try Instruction("F")
 
-        let robotPosition = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
 
         XCTAssertEqual(robotPosition.description, "0 2 N LOST")
+        XCTAssertEqual(world, inputWorld)
+    }
+
+    public func test_whenOnScentAndWouldGoOffGrid_doesNotMove() throws {
+        let inputRobotPosition = try RobotPosition("0 2 N")
+        let inputWorld = World(maxX: 2, maxY: 2, scents: [Scent(x: 0, y: 2)])
+        let inputInstruction = try Instruction("F")
+
+        let (robotPosition, world) = moveRobot(at: inputRobotPosition, in: inputWorld, instruction: inputInstruction)
+
+        XCTAssertEqual(robotPosition.description, "0 2 N")
+        XCTAssertEqual(world, inputWorld)
     }
 }
 
@@ -426,54 +454,70 @@ public class MoveRobotForwardTests: XCTestCase {
         let inputRobotPosition = try RobotPosition("1 2 N")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "1 3 N")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_east() throws {
         let inputRobotPosition = try RobotPosition("1 2 E")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "2 2 E")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_south() throws {
         let inputRobotPosition = try RobotPosition("1 2 S")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "1 1 S")
+        XCTAssertEqual(world, inputWorld)
     }
 
     public func test_west() throws {
         let inputRobotPosition = try RobotPosition("1 2 W")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "0 2 W")
+        XCTAssertEqual(world, inputWorld)
     }
 
-    public func test_movesOffGrid_isLost() throws {
+    public func test_movesOffGrid_isLost_updatesScents() throws {
         let inputRobotPosition = try RobotPosition("0 2 W")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "0 2 W LOST")
+        XCTAssertEqual(world.scents, [Scent(x: 0, y: 2)])
     }
 
     public func test_whenLost_doesNotMove() throws {
         let inputRobotPosition = try RobotPosition("0 2 N LOST")
         let inputWorld = try World("100 100")
 
-        let robotPosition = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
 
         XCTAssertEqual(robotPosition.description, "0 2 N LOST")
+        XCTAssertEqual(world, inputWorld)
+    }
+
+    public func test_whenOnScentAndWouldGoOffGrid_doesNotMove() throws {
+        let inputRobotPosition = try RobotPosition("0 2 N")
+        let inputWorld = World(maxX: 2, maxY: 2, scents: [Scent(x: 0, y: 2)])
+
+        let (robotPosition, world) = moveRobotForward(at: inputRobotPosition, in: inputWorld)
+
+        XCTAssertEqual(robotPosition.description, "0 2 N")
+        XCTAssertEqual(world, inputWorld)
     }
 }
 
@@ -517,5 +561,24 @@ public class AreCoordinatesInsideTests: XCTestCase {
         XCTAssertEqual(areCoordinates(x: 34, y: -1, inside: inputWorld), false)
         XCTAssertEqual(areCoordinates(x: 35, y: 0, inside: inputWorld), false)
         XCTAssertEqual(areCoordinates(x: 0, y: 401, inside: inputWorld), false)
+    }
+}
+
+public class AreCoordinatesOnAScentTests: XCTestCase {
+
+    public func test_scentsEmpty() throws {
+        let inputScents: Set<Scent> = []
+        XCTAssertEqual(areCoordinatesOnAScent(x: 0, y: 0, scents: inputScents), false)
+    }
+
+    public func test_scentsPopulated() throws {
+        let inputScents: Set<Scent> = [
+            Scent(x: 0, y: 1),
+            Scent(x: 1, y: 0)
+        ]
+        XCTAssertEqual(areCoordinatesOnAScent(x: 0, y: 0, scents: inputScents), false)
+        XCTAssertEqual(areCoordinatesOnAScent(x: 0, y: 1, scents: inputScents), true)
+        XCTAssertEqual(areCoordinatesOnAScent(x: 1, y: 0, scents: inputScents), true)
+        XCTAssertEqual(areCoordinatesOnAScent(x: 1, y: 1, scents: inputScents), false)
     }
 }

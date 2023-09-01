@@ -11,13 +11,20 @@ public enum MartianRobotsError: Error {
     case missingRobotInstructionsInMartianRobotsInput
 }
 
-public struct World: CustomStringConvertible, Equatable {
+public struct Scent: Equatable, Hashable {
+    let x: UInt
+    let y: UInt
+}
+
+public struct World: Equatable {
     public let maxX: UInt
     public let maxY: UInt
+    public let scents: Set<Scent>
 
-    public init(maxX: UInt, maxY: UInt) {
+    public init(maxX: UInt, maxY: UInt, scents: Set<Scent>) {
         self.maxX = maxX
         self.maxY = maxY
+        self.scents = scents
     }
 
     public init(_ string: String) throws {
@@ -31,10 +38,7 @@ public struct World: CustomStringConvertible, Equatable {
         }
         self.maxX = maxX
         self.maxY = maxY
-    }
-
-    public var description: String {
-        return "\(maxX) \(maxY)"
+        self.scents = []
     }
 }
 
@@ -156,37 +160,41 @@ public func process(inputString: String) throws -> String {
 }
 
 public func process(input: MartianRobotsInput) -> MartianRobotsOutput {
-    let world = input.world
+    var world = input.world
     var robotPositions: [RobotPosition] = []
     for (robotPosition, instructions) in input.robotPositionAndInstructionsList {
-        let robotPosition = moveRobot(at: robotPosition, in: world, instructions: instructions)
-        robotPositions.append(robotPosition)
+        let updatedRobotPosition: RobotPosition
+        (updatedRobotPosition, world) = moveRobot(at: robotPosition, in: world, instructions: instructions)
+        robotPositions.append(updatedRobotPosition)
     }
     return MartianRobotsOutput(robotPositions: robotPositions)
 }
 
-func moveRobot(at robotPosition: RobotPosition, in world: World, instructions: [Instruction]) -> RobotPosition {
+func moveRobot(at robotPosition: RobotPosition, in world: World, instructions: [Instruction]) -> (RobotPosition, World) {
     var robotPosition = robotPosition
+    var world = world
     for instruction in instructions {
-        robotPosition = moveRobot(at: robotPosition, in: world, instruction: instruction)
+        (robotPosition, world) = moveRobot(at: robotPosition, in: world, instruction: instruction)
     }
-    return robotPosition
+    return (robotPosition, world)
 }
 
-func moveRobot(at robotPosition: RobotPosition, in world: World, instruction: Instruction) -> RobotPosition {
+func moveRobot(at robotPosition: RobotPosition, in world: World, instruction: Instruction) -> (RobotPosition, World) {
     switch instruction {
     case .left:
-        return turnRobotLeft(at: robotPosition, in: world)
+        let robotPosition = turnRobotLeft(at: robotPosition, in: world)
+        return (robotPosition, world)
     case .right:
-        return turnRobotRight(at: robotPosition, in: world)
+        let robotPosition = turnRobotRight(at: robotPosition, in: world)
+        return (robotPosition, world)
     case .forward:
         return moveRobotForward(at: robotPosition, in: world)
     }
 }
 
 func turnRobotLeft(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
-    if robotPosition.isLost {
-        // If the robot is already lost, then don't alter its position
+    guard !robotPosition.isLost else {
+        // If the robot is already lost then don't alter its position
         return robotPosition
     }
     let direction: Direction
@@ -207,8 +215,8 @@ func turnRobotLeft(at robotPosition: RobotPosition, in world: World) -> RobotPos
 }
 
 func turnRobotRight(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
-    if robotPosition.isLost {
-        // If the robot is already lost, then don't alter its position
+    guard !robotPosition.isLost else {
+        // If the robot is already lost then don't alter its position
         return robotPosition
     }
     let direction: Direction
@@ -228,10 +236,10 @@ func turnRobotRight(at robotPosition: RobotPosition, in world: World) -> RobotPo
                          isLost: false)
 }
 
-func moveRobotForward(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
-    if robotPosition.isLost {
-        // If the robot is already lost, then don't alter its position
-        return robotPosition
+func moveRobotForward(at robotPosition: RobotPosition, in world: World) -> (RobotPosition, World) {
+    guard !robotPosition.isLost else {
+        // If the robot is already lost then don't alter its position
+        return (robotPosition, world)
     }
     var x = Int(robotPosition.x)
     var y = Int(robotPosition.y)
@@ -247,18 +255,36 @@ func moveRobotForward(at robotPosition: RobotPosition, in world: World) -> Robot
     }
 
     guard areCoordinates(x: x, y: y, inside: world) else {
+        // This move will land the robot outside of the world/grid
+        if areCoordinatesOnAScent(x: Int(robotPosition.x), y: Int(robotPosition.y), scents: world.scents) {
+            // The robot is positioned on a scent, so it knows not to make the move
+            return (robotPosition, world)
+        }
         // Mark robot as lost and do not update position
-        return RobotPosition(x: robotPosition.x,
-                             y: robotPosition.y,
-                             direction: robotPosition.direction,
-                             isLost: true)
+        let robotPosition = RobotPosition(x: robotPosition.x,
+                                          y: robotPosition.y,
+                                          direction: robotPosition.direction,
+                                          isLost: true)
+        // Update world with scent of lost robots last known coordinates
+        var updatedScents = world.scents
+        updatedScents.insert(Scent(x: robotPosition.x,
+                                   y: robotPosition.y))
+        let updatedWorld = World(maxX: world.maxX,
+                                 maxY: world.maxY,
+                                 scents: updatedScents)
+        return (robotPosition, updatedWorld)
     }
-    return RobotPosition(x: UInt(x),
-                         y: UInt(y),
-                         direction: robotPosition.direction,
-                         isLost: robotPosition.isLost)
+    let robotPosition = RobotPosition(x: UInt(x),
+                                      y: UInt(y),
+                                      direction: robotPosition.direction,
+                                      isLost: robotPosition.isLost)
+    return (robotPosition, world)
 }
 
 func areCoordinates(x: Int, y: Int, inside world: World) -> Bool {
     return 0 <= x && x <= world.maxX && 0 <= y && y <= world.maxY
+}
+
+func areCoordinatesOnAScent(x: Int, y: Int, scents: Set<Scent>) -> Bool {
+    return scents.contains(where: { $0.x == x && $0.y == y})
 }
