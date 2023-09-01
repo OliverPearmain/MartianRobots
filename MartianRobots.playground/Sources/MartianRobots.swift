@@ -185,6 +185,10 @@ func moveRobot(at robotPosition: RobotPosition, in world: World, instruction: In
 }
 
 func turnRobotLeft(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    if robotPosition.isLost {
+        // If the robot is already lost, then don't alter its position
+        return robotPosition
+    }
     let direction: Direction
     switch robotPosition.direction {
     case .north:
@@ -203,6 +207,10 @@ func turnRobotLeft(at robotPosition: RobotPosition, in world: World) -> RobotPos
 }
 
 func turnRobotRight(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    if robotPosition.isLost {
+        // If the robot is already lost, then don't alter its position
+        return robotPosition
+    }
     let direction: Direction
     switch robotPosition.direction {
     case .north:
@@ -221,30 +229,36 @@ func turnRobotRight(at robotPosition: RobotPosition, in world: World) -> RobotPo
 }
 
 func moveRobotForward(at robotPosition: RobotPosition, in world: World) -> RobotPosition {
+    if robotPosition.isLost {
+        // If the robot is already lost, then don't alter its position
+        return robotPosition
+    }
+    var x = Int(robotPosition.x)
+    var y = Int(robotPosition.y)
     switch robotPosition.direction {
     case .north:
-        let y = robotPosition.y + 1
-        return RobotPosition(x: robotPosition.x,
-                             y: y,
-                             direction: robotPosition.direction,
-                             isLost: false)
+        y = y + 1
     case .east:
-        let x = robotPosition.x + 1
-        return RobotPosition(x: x,
-                             y: robotPosition.y,
-                             direction: robotPosition.direction,
-                             isLost: false)
+        x = x + 1
     case .south:
-        let y = robotPosition.y - 1
-        return RobotPosition(x: robotPosition.x,
-                             y: y,
-                             direction: robotPosition.direction,
-                             isLost: false)
+        y = y - 1
     case .west:
-        let x = robotPosition.x - 1
-        return RobotPosition(x: x,
+        x = x - 1
+    }
+
+    guard areCoordinates(x: x, y: y, inside: world) else {
+        // Mark robot as lost and do not update position
+        return RobotPosition(x: robotPosition.x,
                              y: robotPosition.y,
                              direction: robotPosition.direction,
-                             isLost: false)
+                             isLost: true)
     }
+    return RobotPosition(x: UInt(x),
+                         y: UInt(y),
+                         direction: robotPosition.direction,
+                         isLost: robotPosition.isLost)
+}
+
+func areCoordinates(x: Int, y: Int, inside world: World) -> Bool {
+    return 0 <= x && x <= world.maxX && 0 <= y && y <= world.maxY
 }
