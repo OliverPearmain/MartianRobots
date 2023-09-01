@@ -6,7 +6,7 @@ public enum MartianRobotsError: Error {
     case invalidNumberOfComponentsInRobotPosition
     case invalidTypesInRobotPosition
     case invalidDirection
-    case invalidAction
+    case invalidInstruction
 }
 
 public struct World: CustomStringConvertible {
@@ -50,16 +50,16 @@ public enum Direction: String {
     }
 }
 
-public enum Action: String {
+public enum Instruction: String {
     case left = "L"
     case right = "R"
     case forward = "F"
 
     init(_ rawValue: String) throws {
-        guard let action = Self(rawValue: rawValue) else {
-            throw MartianRobotsError.invalidAction
+        guard let instruction = Self(rawValue: rawValue) else {
+            throw MartianRobotsError.invalidInstruction
         }
-        self = action
+        self = instruction
     }
 }
 
@@ -104,8 +104,8 @@ public struct RobotPosition: CustomStringConvertible {
     }
 }
 
-func moveRobot(at robotPosition: RobotPosition, in world: World, action: Action) -> RobotPosition {
-    switch action {
+func moveRobot(at robotPosition: RobotPosition, in world: World, instruction: Instruction) -> RobotPosition {
+    switch instruction {
     case .left:
         return turnRobotLeft(at: robotPosition, in: world)
     case .right:
