@@ -7,9 +7,11 @@ public enum MartianRobotsError: Error {
     case invalidTypesInRobotPosition
     case invalidDirection
     case invalidInstruction
+    case invalidNumberOfComponentsInMartianRobotsInput
+    case missingRobotInstructionsInMartianRobotsInput
 }
 
-public struct World: CustomStringConvertible {
+public struct World: CustomStringConvertible, Equatable {
     public let maxX: UInt
     public let maxY: UInt
 
@@ -36,7 +38,7 @@ public struct World: CustomStringConvertible {
     }
 }
 
-public enum Direction: String {
+public enum Direction: String, Equatable {
     case north = "N"
     case east = "E"
     case south = "S"
@@ -50,7 +52,7 @@ public enum Direction: String {
     }
 }
 
-public enum Instruction: String {
+public enum Instruction: String, Equatable {
     case left = "L"
     case right = "R"
     case forward = "F"
@@ -63,7 +65,7 @@ public enum Instruction: String {
     }
 }
 
-public struct RobotPosition: CustomStringConvertible {
+public struct RobotPosition: CustomStringConvertible, Equatable {
     let x: UInt
     let y: UInt
     let direction: Direction
@@ -102,6 +104,73 @@ public struct RobotPosition: CustomStringConvertible {
     public var description: String {
         return "\(x) \(y) \(direction.rawValue)\(isLost ? " LOST" : "")"
     }
+}
+
+public struct MartianRobotsInput {
+    let world: World
+    let robotPositionAndInstructionsList: [(robotPosition: RobotPosition, instructions: [Instruction])]
+
+    public init(_ string: String) throws {
+        let components = string
+            .components(separatedBy: CharacterSet.newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter{ !$0.isEmpty }
+
+        guard let worldLine = components.first else {
+            throw MartianRobotsError.invalidNumberOfComponentsInMartianRobotsInput
+        }
+        let world = try World(worldLine)
+        var robotPositionAndInstructionsList: [(robotPosition: RobotPosition, instructions: [Instruction])] = []
+
+        var i = 1
+        while components.count > i {
+            let robotPositionLine = components[i]
+            let robotPosition = try RobotPosition(robotPositionLine)
+            i+=1
+            guard components.count > i else {
+                throw MartianRobotsError.missingRobotInstructionsInMartianRobotsInput
+            }
+            let instructionsLine = components[i]
+            let instructions = try instructionsLine.map { try Instruction(String($0)) }
+            i+=1
+            robotPositionAndInstructionsList.append((robotPosition: robotPosition, instructions: instructions))
+        }
+
+        self.world = world
+        self.robotPositionAndInstructionsList = robotPositionAndInstructionsList
+    }
+}
+
+public struct MartianRobotsOutput: CustomStringConvertible {
+    let robotPositions: [RobotPosition]
+
+    public var description: String {
+        return robotPositions.map { $0.description } .joined(separator: "\n")
+    }
+}
+
+public func process(inputString: String) throws -> String {
+    let input = try MartianRobotsInput(inputString)
+    let output = process(input: input)
+    return output.description
+}
+
+public func process(input: MartianRobotsInput) -> MartianRobotsOutput {
+    let world = input.world
+    var robotPositions: [RobotPosition] = []
+    for (robotPosition, instructions) in input.robotPositionAndInstructionsList {
+        let robotPosition = moveRobot(at: robotPosition, in: world, instructions: instructions)
+        robotPositions.append(robotPosition)
+    }
+    return MartianRobotsOutput(robotPositions: robotPositions)
+}
+
+func moveRobot(at robotPosition: RobotPosition, in world: World, instructions: [Instruction]) -> RobotPosition {
+    var robotPosition = robotPosition
+    for instruction in instructions {
+        robotPosition = moveRobot(at: robotPosition, in: world, instruction: instruction)
+    }
+    return robotPosition
 }
 
 func moveRobot(at robotPosition: RobotPosition, in world: World, instruction: Instruction) -> RobotPosition {
